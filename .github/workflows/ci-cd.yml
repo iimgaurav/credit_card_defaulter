@@ -20,7 +20,7 @@ on:
           - prod
 
 env:
-  DATABRICKS_CLI_VERSION: "0.218.0"
+  DATABRICKS_CLI_VERSION: "0.234.0"
   PYTHON_VERSION: "3.11"
 
 jobs:
@@ -54,10 +54,15 @@ jobs:
 
       - name: Validate schemas
         run: |
-          for f in schemas/*.py; do
-            python -m py_compile "$f"
-            echo "  Valid: $f"
-          done
+          if [ -d schemas ]; then
+            for f in schemas/*.py; do
+              [ -f "$f" ] || continue
+              python -m py_compile "$f"
+              echo "  Valid: $f"
+            done
+          else
+            echo "No schemas directory found, skipping."
+          fi
 
   validate-bundle:
     name: Validate DAB Bundle

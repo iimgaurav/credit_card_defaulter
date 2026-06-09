@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  DATABRICKS_CLI_VERSION: "0.218.0"
+  DATABRICKS_CLI_VERSION: "0.234.0"
   PYTHON_VERSION: "3.11"
 
 jobs:
@@ -34,16 +34,7 @@ jobs:
         run: |
           errors=0
           for f in $(find notebooks -name '*.py' -type f); do
-            python -c "
-import re, sys
-with open('$f') as fh:
-    content = fh.read()
-clean = re.sub(r'# MAGIC.*', '', content)
-clean = re.sub(r'# COMMAND .*', '', clean)
-clean = re.sub(r'# %run.*', '', clean)
-clean = re.sub(r'%sql.*', '', clean)
-sys.stdout.write(clean)
-" 2>/dev/null | python -m py_compile - "$f" 2>&1 || { echo "::error::Syntax error in $f"; errors=$((errors+1)); }
+            python -c "import re,sys;code=re.sub(r'# MAGIC.*|# COMMAND .*|# %run.*|%sql.*','',open(sys.argv[1]).read());compile(code,sys.argv[1],'exec')" "$f" 2>&1 || { echo "::error::Syntax error in $f"; errors=$((errors+1)); }
           done
           if [ $errors -gt 0 ]; then exit 1; fi
           echo "All notebooks passed syntax check."
@@ -65,7 +56,7 @@ sys.stdout.write(clean)
       - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
-        uses: databricks/install-databricks-cli@v1
+        uses: databricks/setup-cli@main
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
 
