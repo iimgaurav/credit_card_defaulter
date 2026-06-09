@@ -43,16 +43,7 @@ jobs:
         run: |
           errors=0
           for f in $(find notebooks -name '*.py' -type f); do
-            python -c "
-import re, sys
-with open('$f') as fh:
-    content = fh.read()
-clean = re.sub(r'# MAGIC.*', '', content)
-clean = re.sub(r'# COMMAND .*', '', clean)
-clean = re.sub(r'# %run.*', '', clean)
-clean = re.sub(r'%sql.*', '', clean)
-sys.stdout.write(clean)
-" 2>/dev/null | python -m py_compile - "$f" 2>&1 || { echo "::error::Syntax error in $f"; errors=$((errors+1)); }
+            python -c "import re,sys;sys.stdout.write(re.sub(r'# MAGIC.*|# COMMAND .*|# %run.*|%sql.*','',open(sys.argv[1]).read()))" "$f" 2>/dev/null | python -m py_compile - "$f" 2>&1 || { echo "::error::Syntax error in $f"; errors=$((errors+1)); }
           done
           if [ $errors -gt 0 ]; then exit 1; fi
           echo "All notebooks passed syntax check."
