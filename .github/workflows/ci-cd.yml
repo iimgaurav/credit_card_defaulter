@@ -7,8 +7,6 @@ on:
       - develop
       - release/*
   pull_request:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       target:
