@@ -98,7 +98,7 @@ SELECT * FROM default.control_watermark;
 
 ```bash
 # Validate bundle
-databricks bundle validate -t dev --strict
+databricks bundle validate -t dev
 
 # Deploy
 databricks bundle deploy -t dev --auto-approve

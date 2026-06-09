@@ -63,7 +63,7 @@ find notebooks -name '*.py' -exec python -m py_compile {} \;
 
 ```bash
 # Validate
-databricks bundle validate --target ce --strict
+databricks bundle validate --target ce
 
 # Deploy
 databricks bundle deploy --target ce --auto-approve

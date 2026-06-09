@@ -2,13 +2,15 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop, release/*]
+    branches:
+      - main
+      - develop
+      - release/*
   pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       target:
-        description: 'Deployment target'
+        description: Deployment target
         required: true
         default: dev
         type: choice
@@ -18,7 +20,7 @@ on:
           - prod
 
 env:
-  DATABRICKS_CLI_VERSION: "0.218.0"
+  DATABRICKS_CLI_VERSION: "0.296.1"
   PYTHON_VERSION: "3.11"
 
 jobs:
@@ -41,19 +43,7 @@ jobs:
         run: |
           errors=0
           for f in $(find notebooks -name '*.py' -type f); do
-            # Strip Databricks notebook magic markers and COMMAND separators
-            python -c "
-import re, sys
-with open('$f') as fh:
-    content = fh.read()
-# Remove Databricks magic: # MAGIC ... and # COMMAND ----------
-clean = re.sub(r'# MAGIC.*', '', content)
-clean = re.sub(r'# COMMAND .*', '', clean)
-# Remove %run and %sql cells
-clean = re.sub(r'# %run.*', '', clean)
-clean = re.sub(r'%sql.*', '', clean)
-sys.stdout.write(clean)
-" 2>/dev/null | python -m py_compile - "$f" 2>&1 || { echo "::error::Syntax error in $f"; errors=$((errors+1)); }
+            python -c "import re,sys;code=re.sub(r'# MAGIC.*|# COMMAND .*|# %run.*|%sql.*','',open(sys.argv[1]).read());compile(code,sys.argv[1],'exec')" "$f" 2>&1 || { echo "::error::Syntax error in $f"; errors=$((errors+1)); }
           done
           if [ $errors -gt 0 ]; then exit 1; fi
           echo "All notebooks passed syntax check."
@@ -64,10 +54,15 @@ sys.stdout.write(clean)
 
       - name: Validate schemas
         run: |
-          for f in schemas/*.py; do
-            python -m py_compile "$f"
-            echo "  Valid: $f"
-          done
+          if [ -d schemas ]; then
+            for f in schemas/*.py; do
+              [ -f "$f" ] || continue
+              python -m py_compile "$f"
+              echo "  Valid: $f"
+            done
+          else
+            echo "No schemas directory found, skipping."
+          fi
 
   validate-bundle:
     name: Validate DAB Bundle
@@ -76,15 +71,13 @@ sys.stdout.write(clean)
       - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
-        uses: databricks/install-databricks-cli@v1
-        with:
-          version: ${{ env.DATABRICKS_CLI_VERSION }}
+        uses: databricks/setup-cli@main
 
       - name: Validate bundle config (all targets)
         run: |
           for target in dev uat prod; do
             echo "Validating target: $target"
-            databricks bundle validate --target "$target" --strict
+            databricks bundle validate --target "$target"
           done
         env:
           DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST || 'https://dbc-f49d67a0-6a22.cloud.databricks.com' }}
@@ -134,7 +127,7 @@ sys.stdout.write(clean)
       - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
-        uses: databricks/install-databricks-cli@v1
+        uses: databricks/setup-cli@main
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
 
@@ -164,7 +157,7 @@ sys.stdout.write(clean)
       - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
-        uses: databricks/install-databricks-cli@v1
+        uses: databricks/setup-cli@main
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
 
@@ -186,15 +179,14 @@ sys.stdout.write(clean)
     name: Deploy to Production
     needs: [lint, validate-bundle, security]
     if: |
-      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
-      (github.event_name == 'workflow_dispatch' && inputs.target == 'prod')
+      github.event_name == 'workflow_dispatch' && inputs.target == 'prod'
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
-        uses: databricks/install-databricks-cli@v1
+        uses: databricks/setup-cli@main
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
 

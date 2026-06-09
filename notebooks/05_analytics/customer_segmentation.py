@@ -169,7 +169,7 @@ segments = (
     .withColumn("combined_segment",
         F.when(F.col("rfm_segment").isin("CHAMPIONS", "LOYAL") & (F.col("risk_tier").isin("VERY_HIGH", "HIGH")),
                F.lit("HIGH_VALUE_HIGH_RISK"))
-         .when(F.col("rfm_segment").isin("CHAMPIONS", "LOYAL") & ~F.col("risk_tier").isin("VERY_HIGH", "HIGH")),
+         .when(F.col("rfm_segment").isin("CHAMPIONS", "LOYAL") & ~F.col("risk_tier").isin("VERY_HIGH", "HIGH"),
                F.lit("HIGH_VALUE_LOW_RISK"))
          .when(F.col("rfm_segment") == "AT_RISK",  F.lit("AT_RISK"))
          .when(F.col("risk_tier").isin("VERY_HIGH", "HIGH"), F.lit("DEFAULT_PRONE"))
