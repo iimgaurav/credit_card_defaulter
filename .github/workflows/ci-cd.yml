@@ -27,20 +27,16 @@ env:
 
 jobs:
   lint:
-    name: Lint and Validate
+    name: Lint & Validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
       - name: Install dependencies
-        run: |
-          pip install flake8 pyflakes
-
+        run: pip install flake8 pyflakes
       - name: Databricks notebook syntax check
         run: |
           errors=0
@@ -58,30 +54,23 @@ sys.stdout.write(clean)
           done
           if [ $errors -gt 0 ]; then exit 1; fi
           echo "All notebooks passed syntax check."
-
       - name: Run flake8 lint
         run: |
           flake8 notebooks/ --max-line-length=120 --ignore=E402,W503 --exclude=__pycache__ --show-source --statistics || true
-
       - name: Validate schemas
         run: |
-          for f in schemas/*.py; do
-            python -m py_compile "$f"
-            echo "  Valid: $f"
-          done
+          for f in schemas/*.py; do python -m py_compile "$f"; echo "  Valid: $f"; done
 
   validate-bundle:
     name: Validate DAB Bundle
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install Databricks CLI
         uses: databricks/install-databricks-cli@v1
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
-
-      - name: Validate bundle config (all targets)
+      - name: Validate bundle config
         run: |
           for target in dev uat prod; do
             echo "Validating target: $target"
@@ -99,15 +88,12 @@ sys.stdout.write(clean)
       contents: read
     steps:
       - uses: actions/checkout@v4
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: python
-
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
-
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -116,7 +102,6 @@ sys.stdout.write(clean)
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-
       - name: Upload Trivy results
         if: always()
         uses: github/codeql-action/upload-sarif@v3
@@ -125,92 +110,70 @@ sys.stdout.write(clean)
 
   deploy-dev:
     name: Deploy to Dev
-    needs:
-      - lint
-      - validate-bundle
-      - security
+    needs: [lint, validate-bundle, security]
     if: |
-      github.ref == 'refs/heads/develop'
-      && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
+      github.ref == 'refs/heads/develop' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
     runs-on: ubuntu-latest
     environment: dev
     steps:
       - uses: actions/checkout@v4
-
       - name: Install Databricks CLI
         uses: databricks/install-databricks-cli@v1
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
-
       - name: Deploy bundle to dev
-        run: |
-          databricks bundle deploy --target dev --auto-approve
+        run: databricks bundle deploy --target dev --auto-approve
         env:
           DATABRICKS_HOST: ${{ secrets.DEV_DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DEV_DATABRICKS_TOKEN }}
-
       - name: Run full pipeline in dev
-        run: |
-          databricks bundle run full-pipeline-job --target dev --refresh-all
+        run: databricks bundle run full-pipeline-job --target dev --refresh-all
         env:
           DATABRICKS_HOST: ${{ secrets.DEV_DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DEV_DATABRICKS_TOKEN }}
 
   deploy-uat:
     name: Deploy to UAT
-    needs:
-      - lint
-      - validate-bundle
-      - security
+    needs: [lint, validate-bundle, security]
     if: |
-      (startsWith(github.ref, 'refs/heads/release/') && github.event_name == 'push')
-      || (github.event_name == 'workflow_dispatch' && inputs.target == 'uat')
+      (startsWith(github.ref, 'refs/heads/release/') && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'uat')
     runs-on: ubuntu-latest
     environment: uat
     steps:
       - uses: actions/checkout@v4
-
       - name: Install Databricks CLI
         uses: databricks/install-databricks-cli@v1
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
-
       - name: Deploy bundle to uat
-        run: |
-          databricks bundle deploy --target uat --auto-approve
+        run: databricks bundle deploy --target uat --auto-approve
         env:
           DATABRICKS_HOST: ${{ secrets.UAT_DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.UAT_DATABRICKS_TOKEN }}
-
       - name: Run full pipeline in uat
-        run: |
-          databricks bundle run full-pipeline-job --target uat --refresh-all
+        run: databricks bundle run full-pipeline-job --target uat --refresh-all
         env:
           DATABRICKS_HOST: ${{ secrets.UAT_DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.UAT_DATABRICKS_TOKEN }}
 
   deploy-prod:
     name: Deploy to Production
-    needs:
-      - lint
-      - validate-bundle
-      - security
+    needs: [lint, validate-bundle, security]
     if: |
-      (github.ref == 'refs/heads/main' && github.event_name == 'push')
-      || (github.event_name == 'workflow_dispatch' && inputs.target == 'prod')
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'prod')
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
-
       - name: Install Databricks CLI
         uses: databricks/install-databricks-cli@v1
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
-
       - name: Deploy to production
-        run: |
-          databricks bundle deploy --target prod --auto-approve
+        run: databricks bundle deploy --target prod --auto-approve
         env:
           DATABRICKS_HOST: ${{ secrets.PROD_DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.PROD_DATABRICKS_TOKEN }}
