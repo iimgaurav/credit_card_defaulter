@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  DATABRICKS_CLI_VERSION: "0.215.0"
+  DATABRICKS_CLI_VERSION: "0.296.1"
   PYTHON_VERSION: "3.11"
 
 jobs:
