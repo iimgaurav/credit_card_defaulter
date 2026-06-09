@@ -1,0 +1,128 @@
+{
+  "schema_definitions": {
+    "crm_customer_master": {
+      "source_system": "CRM System",
+      "business_purpose": "Customer demographic data used for KYC, profiling, and segmentation",
+      "primary_key": ["customer_id"],
+      "incremental_column": "ingestion_date",
+      "load_frequency": "Daily",
+      "data_quality_issues": [
+        "Null values in email and phone_number",
+        "Duplicate customer_id records",
+        "Invalid date_of_birth (future dates, too old >120)",
+        "Negative annual_income values",
+        "Non-standard gender codes",
+        "Missing marital_status"
+      ]
+    },
+    "crm_customer_address": {
+      "source_system": "CRM System",
+      "business_purpose": "Customer address data for billing, legal notices, and geographical analysis",
+      "primary_key": ["customer_id", "address_type"],
+      "incremental_column": "ingestion_date",
+      "load_frequency": "Daily",
+      "data_quality_issues": [
+        "Missing state_code",
+        "Invalid country_code (non-ISO values)",
+        "Null zip_code values",
+        "Orphan customer_id (no matching customer_master)"
+      ]
+    },
+    "card_details": {
+      "source_system": "Card Management System",
+      "business_purpose": "Card product data including limits, interest rates, and expiry tracking",
+      "primary_key": ["card_id"],
+      "incremental_column": "ingestion_date",
+      "load_frequency": "Daily",
+      "data_quality_issues": [
+        "Null or zero credit_limit",
+        "Negative interest_rate",
+        "Expired cards not flagged",
+        "Duplicate card_id entries",
+        "Cash_limit > credit_limit"
+      ]
+    },
+    "card_status": {
+      "source_system": "Card Management System",
+      "business_purpose": "Card lifecycle tracking — active, blocked, closed status history",
+      "primary_key": ["card_id", "status_date"],
+      "incremental_column": "ingestion_date",
+      "load_frequency": "Daily",
+      "data_quality_issues": [
+        "Orphan card_id (no matching card_details)",
+        "Invalid status_code values",
+        "Status_date in the future"
+      ]
+    },
+    "txn_transactions": {
+      "source_system": "Transaction Processing System",
+      "business_purpose": "All credit card transactions for spend analysis, fraud detection, and billing",
+      "primary_key": ["transaction_id"],
+      "incremental_column": "transaction_date",
+      "load_frequency": "Near Real-Time",
+      "data_quality_issues": [
+        "Negative transaction amounts",
+        "Missing merchant_name",
+        "Invalid currency_code",
+        "Orphan card_id",
+        "Duplicate transaction_id (reprocessing)",
+        "Transaction_date in the future",
+        "Outlier amounts (very high or very low)",
+        "Null transaction_type"
+      ]
+    },
+    "billing_statements": {
+      "source_system": "Billing System",
+      "business_purpose": "Monthly statement data for payment tracking, interest calculation, and DPD analysis",
+      "primary_key": ["statement_id"],
+      "incremental_column": "statement_date",
+      "load_frequency": "Monthly",
+      "data_quality_issues": [
+        "Orphan card_id",
+        "Negative opening_balance",
+        "Due_date before statement_date",
+        "Missing minimum_due",
+        "Closing_balance != opening_balance + purchases - payments + interest + fees"
+      ]
+    },
+    "billing_payments": {
+      "source_system": "Billing System",
+      "business_purpose": "Payment transactions applied to statements for payment behavior analysis",
+      "primary_key": ["payment_id"],
+      "incremental_column": "payment_date",
+      "load_frequency": "Monthly",
+      "data_quality_issues": [
+        "Orphan statement_id",
+        "Negative payment_amount",
+        "Payment_date before statement_date"
+      ]
+    },
+    "collections_defaults": {
+      "source_system": "Collections System",
+      "business_purpose": "Default events for risk modeling, collections strategy, and loss forecasting",
+      "primary_key": ["default_id"],
+      "incremental_column": "default_date",
+      "load_frequency": "Weekly",
+      "data_quality_issues": [
+        "Duplicate default_id",
+        "Negative days_past_due",
+        "Missing collection_stage",
+        "Orphan customer_id",
+        "Multiple active defaults for same card"
+      ]
+    },
+    "collections_recovery": {
+      "source_system": "Collections System",
+      "business_purpose": "Recovery tracking after default for loss-given-default calculation",
+      "primary_key": ["recovery_id"],
+      "incremental_column": "recovery_date",
+      "load_frequency": "Weekly",
+      "data_quality_issues": [
+        "Orphan default_id",
+        "Recovery_amount > outstanding_amount",
+        "Negative recovery_amount",
+        "Recovery_date before default_date"
+      ]
+    }
+  }
+}

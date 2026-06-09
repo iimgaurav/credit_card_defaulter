@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <style>
+      .title { font: 700 34px Arial, sans-serif; fill: #17202a; }
+      .subtitle { font: 400 18px Arial, sans-serif; fill: #425466; }
+      .box-title { font: 700 19px Arial, sans-serif; fill: #17202a; }
+      .box-text { font: 400 15px Arial, sans-serif; fill: #263238; }
+      .small { font: 400 13px Arial, sans-serif; fill: #455a64; }
+      .pill { font: 700 13px Arial, sans-serif; fill: #ffffff; }
+      .arrow { stroke: #34495e; stroke-width: 3; fill: none; marker-end: url(#arrowhead); }
+      .soft-arrow { stroke: #78909c; stroke-width: 2.2; fill: none; marker-end: url(#arrowhead-soft); stroke-dasharray: 7 7; }
+      .source { fill: #e8f3ff; stroke: #3b82b5; stroke-width: 2; }
+      .landing { fill: #edf7ed; stroke: #4f8f55; stroke-width: 2; }
+      .bronze { fill: #b87333; stroke: #7a4a20; stroke-width: 2; }
+      .silver { fill: #e2e5e8; stroke: #7d8790; stroke-width: 2; }
+      .gold { fill: #f5cc4d; stroke: #a67b00; stroke-width: 2; }
+      .consume { fill: #f2e8ff; stroke: #7e57c2; stroke-width: 2; }
+      .ops { fill: #fff7e6; stroke: #d28a00; stroke-width: 2; }
+      .darkText { fill: #17202a; }
+      .whiteText { fill: #ffffff; }
+    </style>
+    <marker id="arrowhead" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 z" fill="#34495e"/>
+    </marker>
+    <marker id="arrowhead-soft" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 z" fill="#78909c"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="1000" fill="#f7f9fb"/>
+
+  <text x="60" y="58" class="title">Credit Card Defaulter Analysis - Databricks Medallion Architecture</text>
+  <text x="60" y="88" class="subtitle">Actual repository architecture: synthetic file sources -> UC Volume -> Bronze -> Silver -> Gold -> Analytics/Power BI, orchestrated with Databricks Asset Bundles.</text>
+
+  <rect x="60" y="145" width="230" height="570" rx="14" class="source"/>
+  <text x="88" y="182" class="box-title">Source Systems</text>
+  <text x="88" y="216" class="box-text">Synthetic banking files</text>
+  <text x="88" y="248" class="small">CRM: customers, address</text>
+  <text x="88" y="276" class="small">Card: details, status</text>
+  <text x="88" y="304" class="small">Transactions: JSON</text>
+  <text x="88" y="332" class="small">Billing: statements, payments</text>
+  <text x="88" y="360" class="small">Collections: defaults, recovery</text>
+  <text x="88" y="388" class="small">Reference: country, state, currency</text>
+  <text x="88" y="416" class="small">Calendar: dim_calendar</text>
+  <rect x="88" y="468" width="170" height="34" rx="17" fill="#3b82b5"/>
+  <text x="112" y="490" class="pill">CSV / Parquet / JSON / Excel</text>
+  <text x="88" y="545" class="small">Not found: PostgreSQL, SQL Server,</text>
+  <text x="88" y="568" class="small">CRM API, ERP connectors.</text>
+
+  <rect x="350" y="145" width="235" height="570" rx="14" class="landing"/>
+  <text x="382" y="182" class="box-title">Landing Storage</text>
+  <text x="382" y="216" class="box-text">Unity Catalog Volume</text>
+  <text x="382" y="248" class="small">/Volumes/credit_card_dev</text>
+  <text x="382" y="270" class="small">/raw/landing</text>
+  <text x="382" y="322" class="small">Auto Loader checkpoints:</text>
+  <text x="382" y="344" class="small">/landing/_checkpoints</text>
+  <rect x="382" y="397" width="160" height="34" rx="17" fill="#4f8f55"/>
+  <text x="416" y="419" class="pill">UC Volumes</text>
+  <text x="382" y="493" class="small">ADLS Gen2 external locations</text>
+  <text x="382" y="516" class="small">are a recommended extension,</text>
+  <text x="382" y="539" class="small">not present in code.</text>
+
+  <rect x="650" y="145" width="230" height="570" rx="14" class="bronze"/>
+  <text x="682" y="182" class="box-title whiteText">Bronze Layer</text>
+  <text x="682" y="216" class="box-text whiteText">credit_card_dev.bronze</text>
+  <text x="682" y="252" class="small" fill="#ffffff">Raw Delta tables</text>
+  <text x="682" y="280" class="small" fill="#ffffff">13 source tables</text>
+  <text x="682" y="308" class="small" fill="#ffffff">pipeline_logs</text>
+  <text x="682" y="336" class="small" fill="#ffffff">dq_quarantine</text>
+  <text x="682" y="388" class="small" fill="#ffffff">Ingestion:</text>
+  <text x="682" y="416" class="small" fill="#ffffff">Auto Loader availableNow</text>
+  <text x="682" y="444" class="small" fill="#ffffff">Batch MERGE for ref/Excel</text>
+  <text x="682" y="496" class="small" fill="#ffffff">Metadata:</text>
+  <text x="682" y="524" class="small" fill="#ffffff">run_id, source_file,</text>
+  <text x="682" y="552" class="small" fill="#ffffff">load_timestamp</text>
+
+  <rect x="945" y="145" width="245" height="570" rx="14" class="silver"/>
+  <text x="976" y="182" class="box-title">Silver Layer</text>
+  <text x="976" y="216" class="box-text">credit_card_dev.silver</text>
+  <text x="976" y="252" class="small">customer_clean</text>
+  <text x="976" y="280" class="small">card_clean</text>
+  <text x="976" y="308" class="small">transaction_clean</text>
+  <text x="976" y="336" class="small">statement/payment_clean</text>
+  <text x="976" y="364" class="small">default/recovery_clean</text>
+  <text x="976" y="392" class="small">customer_360_view</text>
+  <text x="976" y="420" class="small">dq_scores</text>
+  <rect x="976" y="468" width="180" height="34" rx="17" fill="#607d8b"/>
+  <text x="1007" y="490" class="pill">CDF enabled</text>
+  <text x="976" y="545" class="small">Cleaning, validation,</text>
+  <text x="976" y="568" class="small">dedupe, enrichment.</text>
+
+  <rect x="1260" y="145" width="280" height="570" rx="14" class="gold"/>
+  <text x="1292" y="182" class="box-title">Gold Layer</text>
+  <text x="1292" y="216" class="box-text">credit_card_dev.gold</text>
+  <text x="1292" y="252" class="small">Dimensions:</text>
+  <text x="1312" y="280" class="small">dim_date</text>
+  <text x="1312" y="308" class="small">dim_geography</text>
+  <text x="1312" y="336" class="small">dim_customer SCD2</text>
+  <text x="1312" y="364" class="small">dim_card SCD2</text>
+  <text x="1292" y="416" class="small">Facts:</text>
+  <text x="1312" y="444" class="small">fact_transaction</text>
+  <text x="1312" y="472" class="small">fact_statement</text>
+  <text x="1312" y="500" class="small">fact_default_analysis</text>
+  <text x="1292" y="552" class="small">Analytics: utilization,</text>
+  <text x="1292" y="575" class="small">payments, risk, trends, segments</text>
+
+  <rect x="955" y="780" width="270" height="130" rx="14" class="consume"/>
+  <text x="985" y="818" class="box-title">Consumption</text>
+  <text x="985" y="850" class="small">Power BI connectivity guide</text>
+  <text x="985" y="874" class="small">Direct Lake / DirectQuery</text>
+  <text x="985" y="898" class="small">Risk, Collections, Finance views</text>
+
+  <rect x="1260" y="780" width="280" height="130" rx="14" class="ops"/>
+  <text x="1292" y="818" class="box-title">DataOps / Monitoring</text>
+  <text x="1292" y="850" class="small">DQ monitoring, SLA checks</text>
+  <text x="1292" y="874" class="small">Reconciliation, SQL alerts</text>
+  <text x="1292" y="898" class="small">OPTIMIZE, VACUUM, ZORDER</text>
+
+  <path d="M290 430 L350 430" class="arrow"/>
+  <path d="M585 430 L650 430" class="arrow"/>
+  <path d="M880 430 L945 430" class="arrow"/>
+  <path d="M1190 430 L1260 430" class="arrow"/>
+  <path d="M1360 715 C1360 760, 1160 735, 1110 780" class="arrow"/>
+  <path d="M1425 715 L1425 780" class="arrow"/>
+
+  <rect x="60" y="780" width="770" height="130" rx="14" fill="#ffffff" stroke="#cfd8dc" stroke-width="2"/>
+  <text x="92" y="818" class="box-title">Orchestration and Governance</text>
+  <text x="92" y="850" class="small">Databricks Asset Bundle: databricks.yml + resources/*.yml with dev/prod targets.</text>
+  <text x="92" y="874" class="small">Databricks Workflows: full pipeline, bronze job, silver job, gold job, monitoring job.</text>
+  <text x="92" y="898" class="small">Governance: Unity Catalog schemas; production recommendations include grants, masking, RLS, and CI/CD.</text>
+
+  <path d="M445 780 C445 725, 760 745, 760 715" class="soft-arrow"/>
+  <path d="M555 780 C555 725, 1070 745, 1070 715" class="soft-arrow"/>
+  <path d="M675 780 C675 725, 1400 745, 1400 715" class="soft-arrow"/>
+</svg>
+

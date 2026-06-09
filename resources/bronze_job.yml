@@ -1,0 +1,146 @@
+# Bronze Ingestion Job
+# Runs all 11 ingestion notebooks in parallel, then validates
+# Triggered by: schedule or full_pipeline_job dependency
+
+resources:
+  jobs:
+    bronze-ingestion-job:
+      name: ${var.catalog}-bronze-ingestion-job
+      max_concurrent_runs: 1
+
+      tasks:
+        # T1: CRM ingestion (parallel group A)
+        - task_key: ingest_crm_customer
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/crm_customer.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_crm_address
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/crm_address.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        # T2: Card ingestion (parallel group A)
+        - task_key: ingest_card_details
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/card_details.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_card_status
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/card_status.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        # T3: Transactions (parallel group A — largest dataset)
+        - task_key: ingest_transactions
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/txn_transactions.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 3600
+
+        # T4: Billing (parallel group A)
+        - task_key: ingest_billing_statements
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/billing_statements.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_billing_payments
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/billing_payments.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        # T5: Collections (parallel group A)
+        - task_key: ingest_collections_defaults
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/collections_defaults.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_collections_recovery
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/collections_recovery.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        # T6: Reference + Calendar (parallel group A)
+        - task_key: ingest_ref_tables
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/ref_tables.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 600
+
+        - task_key: ingest_dim_calendar
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/dim_calendar.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 600
+
+        # T7: Validation — depends on ALL ingestion tasks
+        - task_key: bronze_validate
+          notebook_task:
+            notebook_path: ../notebooks/02_bronze/bronze_validate.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: ingest_crm_customer
+            - task_key: ingest_crm_address
+            - task_key: ingest_card_details
+            - task_key: ingest_card_status
+            - task_key: ingest_transactions
+            - task_key: ingest_billing_statements
+            - task_key: ingest_billing_payments
+            - task_key: ingest_collections_defaults
+            - task_key: ingest_collections_recovery
+            - task_key: ingest_ref_tables
+            - task_key: ingest_dim_calendar
+          run_if: ALL_SUCCESS
+          timeout_seconds: 600

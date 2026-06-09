@@ -1,0 +1,433 @@
+# Full Pipeline Orchestration Job
+# Bronze → Silver → Gold → Analytics → DQ → Reconciliation
+# Single job with complete task DAG, retries, timeouts, and Slack alerting
+# Schedule: daily at 2am UTC
+
+resources:
+  jobs:
+    full-pipeline-job:
+      name: ${var.catalog}-full-pipeline
+      max_concurrent_runs: 1
+
+      schedule:
+        quartz_cron_expression: ${var.pipeline_schedule}
+        timezone_id: UTC
+        pause_status: UNPAUSED
+
+      tasks:
+
+        # ── STAGE 1: Bronze Ingestion (parallel) ───────────────────────────
+
+        - task_key: ingest_crm_customer
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/crm_customer.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_crm_address
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/crm_address.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_card_details
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/card_details.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_card_status
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/card_status.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_transactions
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/txn_transactions.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 3600
+
+        - task_key: ingest_billing_statements
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/billing_statements.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_billing_payments
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/billing_payments.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_collections_defaults
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/collections_defaults.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_collections_recovery
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/collections_recovery.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: ingest_ref_tables
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/ref_tables.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 600
+
+        - task_key: ingest_dim_calendar
+          notebook_task:
+            notebook_path: ../notebooks/01_ingestion/dim_calendar.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 600
+
+        # ── STAGE 1b: Bronze Validation ────────────────────────────────────
+
+        - task_key: bronze_validate
+          notebook_task:
+            notebook_path: ../notebooks/02_bronze/bronze_validate.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: ingest_crm_customer
+            - task_key: ingest_crm_address
+            - task_key: ingest_card_details
+            - task_key: ingest_card_status
+            - task_key: ingest_transactions
+            - task_key: ingest_billing_statements
+            - task_key: ingest_billing_payments
+            - task_key: ingest_collections_defaults
+            - task_key: ingest_collections_recovery
+            - task_key: ingest_ref_tables
+            - task_key: ingest_dim_calendar
+          run_if: ALL_SUCCESS
+          timeout_seconds: 600
+
+        # ── STAGE 2: Silver Transforms ─────────────────────────────────────
+
+        - task_key: silver_crm_customer
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_crm_customer.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: bronze_validate
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        - task_key: silver_card
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_card.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_crm_customer
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        - task_key: silver_transactions
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_transactions.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_card
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: silver_billing
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_billing.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_crm_customer
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        - task_key: silver_collections
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_collections.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_crm_customer
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        - task_key: silver_enrichment
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_enrichment.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_transactions
+            - task_key: silver_billing
+            - task_key: silver_collections
+          run_if: ALL_SUCCESS
+          timeout_seconds: 1200
+
+        - task_key: silver_dq
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_dq.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_enrichment
+          run_if: ALL_SUCCESS
+          timeout_seconds: 900
+
+        # ── STAGE 3: Gold Dims (parallel after silver_dq) ─────────────────
+
+        - task_key: gold_dim_date
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_dim_date.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_dq
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 600
+
+        - task_key: gold_dim_geography
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_dim_geography.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_dq
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 600
+
+        - task_key: gold_dim_customer
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_dim_customer.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_dim_geography
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        - task_key: gold_dim_card
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_dim_card.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_dim_customer
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        # ── STAGE 3b: Gold Facts (parallel after dims) ────────────────────
+
+        - task_key: gold_fact_transaction
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_fact_transaction.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_dim_date
+            - task_key: gold_dim_geography
+            - task_key: gold_dim_customer
+            - task_key: gold_dim_card
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        - task_key: gold_fact_statement
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_fact_statement.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_dim_date
+            - task_key: gold_dim_customer
+            - task_key: gold_dim_card
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        - task_key: gold_fact_default
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_fact_default.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_dim_date
+            - task_key: gold_dim_customer
+            - task_key: gold_dim_card
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        # ── STAGE 3c: Gold Validation ──────────────────────────────────────
+
+        - task_key: gold_validate
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_validate.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_fact_transaction
+            - task_key: gold_fact_statement
+            - task_key: gold_fact_default
+          run_if: ALL_SUCCESS
+          timeout_seconds: 900
+
+        # ── STAGE 4: Analytics (parallel after gold_validate) ─────────────
+
+        - task_key: analytics_credit_utilization
+          notebook_task:
+            notebook_path: ../notebooks/05_analytics/credit_utilization.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_validate
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 900
+
+        - task_key: analytics_payment_behavior
+          notebook_task:
+            notebook_path: ../notebooks/05_analytics/payment_behavior.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_validate
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 900
+
+        - task_key: analytics_monthly_trends
+          notebook_task:
+            notebook_path: ../notebooks/05_analytics/monthly_trends.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_validate
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 900
+
+        # Risk scoring depends on utilization + payment behavior
+        - task_key: analytics_risk_scoring
+          notebook_task:
+            notebook_path: ../notebooks/05_analytics/default_risk_scoring.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: analytics_credit_utilization
+            - task_key: analytics_payment_behavior
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 900
+
+        # Segmentation depends on risk scoring
+        - task_key: analytics_customer_segmentation
+          notebook_task:
+            notebook_path: ../notebooks/05_analytics/customer_segmentation.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: analytics_risk_scoring
+          run_if: ALL_SUCCESS
+          timeout_seconds: 900
+
+        # ── STAGE 5: DQ + Reconciliation (final) ──────────────────────────
+
+        - task_key: dq_monitoring
+          notebook_task:
+            notebook_path: ../notebooks/06_monitoring/dq_monitoring.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: analytics_customer_segmentation
+            - task_key: analytics_monthly_trends
+          run_if: AT_LEAST_ONE_SUCCESS
+          timeout_seconds: 900
+
+        - task_key: reconciliation
+          notebook_task:
+            notebook_path: ../notebooks/06_monitoring/reconciliation.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: dq_monitoring
+          run_if: ALL_SUCCESS
+          timeout_seconds: 600

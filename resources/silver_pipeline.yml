@@ -1,0 +1,132 @@
+# Silver Transformation Pipeline
+# Lakeflow SDP pipeline for cleansing, enrichment, and business rules
+
+resources:
+  pipelines:
+    silver-transform-pipeline:
+      name: ${var.catalog}-silver-transform
+      catalog: ${var.catalog}
+      target: ${var.silver_schema}
+      development: ${var.pipeline_development}
+      serverless: true
+      channel: CURRENT
+      continuous: false
+      configuration:
+        pipeline.target_catalog: ${var.catalog}
+        warehouse_id: ${var.warehouse_id}
+      libraries:
+        # T4.1 — CRM Customer → customer_clean
+        - notebook:
+            path: ../notebooks/03_silver/silver_crm_customer.py
+        # T4.2 — Card Details + Status → card_clean
+        - notebook:
+            path: ../notebooks/03_silver/silver_card.py
+        # T4.3 — Transactions → transaction_clean
+        - notebook:
+            path: ../notebooks/03_silver/silver_transactions.py
+        # T4.4 — Billing Statements + Payments → statement_clean + payment_clean
+        - notebook:
+            path: ../notebooks/03_silver/silver_billing.py
+        # T4.5 — Collections Defaults + Recovery → default_clean + recovery_clean
+        - notebook:
+            path: ../notebooks/03_silver/silver_collections.py
+        # T4.6 — All Silver → customer_360_view
+        - notebook:
+            path: ../notebooks/03_silver/silver_enrichment.py
+        # T4.7 — DQ Validation Report
+        - notebook:
+            path: ../notebooks/03_silver/silver_dq.py
+      # Trigger managed by full-pipeline-job or external scheduler
+
+  jobs:
+    silver-transform-job:
+      name: ${var.catalog}-silver-transform-job
+      max_concurrent_runs: 1
+
+      tasks:
+        # T4.1 — must run first (customer_id FK required by card)
+        - task_key: silver_crm_customer
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_crm_customer.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        # T4.2 — depends on customer_clean for FK validation
+        - task_key: silver_card
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_card.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_crm_customer
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        # T4.3 — depends on card_clean for customer_id enrichment
+        - task_key: silver_transactions
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_transactions.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_card
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        # T4.4 — independent of CRM/Card
+        - task_key: silver_billing
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_billing.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_crm_customer
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        # T4.5 — independent of transactions/billing
+        - task_key: silver_collections
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_collections.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_crm_customer
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        # T4.6 — depends on all silver tables
+        - task_key: silver_enrichment
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_enrichment.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_transactions
+            - task_key: silver_billing
+            - task_key: silver_collections
+          run_if: ALL_SUCCESS
+          timeout_seconds: 1200
+
+        # T4.7 — DQ after enrichment
+        - task_key: silver_dq
+          notebook_task:
+            notebook_path: ../notebooks/03_silver/silver_dq.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: silver_enrichment
+          run_if: ALL_SUCCESS
+          timeout_seconds: 900

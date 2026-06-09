@@ -1,0 +1,141 @@
+{
+  "catalog": "credit_card_dev",
+  "schema": "bronze",
+  "silver_schema": "silver",
+  "gold_schema": "gold",
+  "raw_volume": "credit_card_dev.raw.landing",
+
+  "autoloader": {
+    "schema_evolution": true,
+    "rescued_data_column": "_rescued_data",
+    "cloud_files_infer_column_types": true,
+    "queue_size": 10000
+  },
+
+  "bronze_tables": {
+    "crm_customer_master": {
+      "source_path": "crm/customer_master/",
+      "file_format": "csv",
+      "header": true,
+      "infer_schema": true,
+      "partition_col": "ingestion_date",
+      "load_strategy": "append"
+    },
+    "crm_customer_address": {
+      "source_path": "crm/customer_address/",
+      "file_format": "csv",
+      "header": true,
+      "partition_col": "ingestion_date",
+      "load_strategy": "append"
+    },
+    "card_details": {
+      "source_path": "card/card_details",
+      "file_format": "parquet",
+      "partition_col": "ingestion_date",
+      "load_strategy": "append"
+    },
+    "card_status": {
+      "source_path": "card/card_status",
+      "file_format": "parquet",
+      "partition_col": "ingestion_date",
+      "load_strategy": "append"
+    },
+    "txn_transactions": {
+      "source_path": "txn/transactions",
+      "file_format": "json",
+      "multi_line": false,
+      "partition_col": "ingestion_date",
+      "load_strategy": "append"
+    },
+    "billing_statements": {
+      "source_path": "billing/billing_statements",
+      "file_format": "csv",
+      "header": true,
+      "partition_col": "ingestion_date",
+      "load_strategy": "append"
+    },
+    "billing_payments": {
+      "source_path": "billing/billing_payments",
+      "file_format": "csv",
+      "header": true,
+      "partition_col": "ingestion_date",
+      "load_strategy": "append"
+    },
+    "collections_defaults": {
+      "source_path": "collections/collections_defaults",
+      "file_format": "excel",
+      "data_address": "Sheet1",
+      "partition_col": "ingestion_date",
+      "load_strategy": "append"
+    },
+    "collections_recovery": {
+      "source_path": "collections/collections_recovery",
+      "file_format": "excel",
+      "data_address": "Sheet1",
+      "partition_col": "ingestion_date",
+      "load_strategy": "append"
+    }
+  },
+
+  "reference_tables": {
+    "ref_country": {
+      "source_path": "ref/ref_country",
+      "file_format": "csv",
+      "load_strategy": "overwrite",
+      "merge_key": "country_code"
+    },
+    "ref_state": {
+      "source_path": "ref/ref_state",
+      "file_format": "csv",
+      "load_strategy": "overwrite",
+      "merge_key": "state_code"
+    },
+    "ref_currency": {
+      "source_path": "ref/ref_currency",
+      "file_format": "csv",
+      "load_strategy": "overwrite",
+      "merge_key": "currency_code"
+    }
+  },
+
+  "checksum_enabled": true,
+
+  "dq_rules": {
+    "null_threshold_pct": 5.0,
+    "duplicate_threshold_pct": 0.0,
+    "max_outlier_std_dev": 4.0,
+    "credit_score_min": 300,
+    "credit_score_max": 850,
+    "amount_min": 0,
+    "amount_max": 1000000,
+    "interest_rate_min": 0,
+    "interest_rate_max": 50,
+    "age_min": 18,
+    "age_max": 120
+  },
+
+  "performance": {
+    "auto_compact": true,
+    "optimize_write": true,
+    "liquid_clustering": true,
+    "zorder_enabled": false,
+    "shuffle_partitions": "auto"
+  },
+
+  "schema_drift": {
+    "enabled": true,
+    "rescued_column": "_rescued_data",
+    "fail_on_drift": false,
+    "fail_on_rescued_data": false,
+    "alert_on_drift": true,
+    "monitoring_table": "credit_card_dev.control.schema_drift_log"
+  },
+
+  "alerting": {
+    "slack_webhook_url": "",
+    "email_recipients": [],
+    "pagerduty_enabled": false,
+    "dq_score_threshold": 95.0,
+    "pipeline_sla_minutes": 120
+  }
+}

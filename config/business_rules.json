@@ -1,0 +1,70 @@
+{
+  "business_rules": {
+    "credit_utilization": {
+      "name": "Credit Utilization Ratio",
+      "formula": "total_transaction_amount / credit_limit * 100",
+      "source_tables": ["gold.fact_transaction", "gold.dim_card"],
+      "description": "Percentage of available credit being used. High utilization (>30%) indicates higher risk."
+    },
+    "payment_ratio": {
+      "name": "Payment Ratio",
+      "formula": "total_payments / closing_balance",
+      "source_tables": ["gold.fact_statement"],
+      "description": "Percentage of balance paid. < minimum indicates financial stress."
+    },
+    "minimum_due_percentage": {
+      "name": "Minimum Due %",
+      "formula": "minimum_due / closing_balance * 100",
+      "source_tables": ["gold.fact_statement"],
+      "description": "Percentage of balance that is the minimum payment. Higher % means longer payoff."
+    },
+    "average_monthly_spend": {
+      "name": "Average Monthly Spend",
+      "formula": "AVG(total_purchases) OVER (PARTITION BY customer_id)",
+      "source_tables": ["gold.fact_statement"],
+      "description": "Customer's average monthly spending pattern. Used for anomaly detection."
+    },
+    "late_payment_ratio": {
+      "name": "Late Payment Ratio",
+      "formula": "COUNT(late_payments) / COUNT(total_statements)",
+      "source_tables": ["gold.fact_statement"],
+      "description": "Percentage of statements where payment was late. High ratio indicates default risk."
+    },
+    "days_past_due": {
+      "name": "Days Past Due",
+      "formula": "DATEDIFF(current_date, due_date) WHERE payment < minimum_due",
+      "source_tables": ["gold.fact_statement", "gold.fact_default_analysis"],
+      "description": "Current DPD. >30 = delinquent, >60 = seriously delinquent, >90 = default."
+    },
+    "rolling_3m_spend": {
+      "name": "Rolling 3-Month Average Spend",
+      "formula": "AVG(amount) OVER (PARTITION BY customer_id ORDER BY transaction_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)",
+      "source_tables": ["gold.fact_transaction"],
+      "description": "3-month moving average of spend. Used to smooth seasonal variations."
+    },
+    "risk_score": {
+      "name": "Composite Risk Score",
+      "formula": "0.30 * utilization_factor + 0.25 * dpd_factor + 0.25 * late_payment_factor + 0.20 * recovery_factor",
+      "source_tables": ["gold.fact_transaction", "gold.fact_statement", "gold.fact_default_analysis"],
+      "description": "Weighted risk score (0-10). 0-3 Low, 4-6 Medium, 7-8 High, 9-10 Critical."
+    },
+    "default_probability": {
+      "name": "Default Probability Indicator",
+      "formula": "CASE WHEN dpd > 90 OR risk_score >= 7 THEN 1 ELSE 0 END",
+      "source_tables": ["gold.fact_default_analysis"],
+      "description": "Binary indicator for likely default. Used for proactive collections."
+    },
+    "customer_segments": {
+      "name": "Customer Risk Segments",
+      "formula": "CASE WHEN risk_score <= 3 THEN 'Low Risk' WHEN risk_score <= 6 THEN 'Medium Risk' WHEN risk_score <= 8 THEN 'High Risk' ELSE 'Critical' END",
+      "source_tables": ["risk_score calculation"],
+      "description": "Risk-based customer segments for differentiated treatment strategies."
+    },
+    "high_risk_threshold": {
+      "name": "High-Risk Customer Identification",
+      "formula": "risk_score >= 7 AND (dpd > 60 OR quarterly_default_flag = 1)",
+      "source_tables": ["gold.fact_default_analysis", "gold.fact_statement"],
+      "description": "Customers requiring immediate collections intervention."
+    }
+  }
+}

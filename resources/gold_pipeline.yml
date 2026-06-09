@@ -1,0 +1,155 @@
+# Gold Build Pipeline
+# Lakeflow SDP pipeline for dimensional model build
+
+resources:
+  pipelines:
+    gold-build-pipeline:
+      name: ${var.catalog}-gold-build
+      catalog: ${var.catalog}
+      target: ${var.gold_schema}
+      development: ${var.pipeline_development}
+      serverless: true
+      channel: CURRENT
+      continuous: false
+      configuration:
+        pipeline.target_catalog: ${var.catalog}
+        warehouse_id: ${var.warehouse_id}
+      libraries:
+        # T5.1 — date dimension (no deps)
+        - notebook:
+            path: ../notebooks/04_gold/gold_dim_date.py
+        # T5.2 — geography dimension (no deps)
+        - notebook:
+            path: ../notebooks/04_gold/gold_dim_geography.py
+        # T5.3 — customer SCD2 (needs dim_geography)
+        - notebook:
+            path: ../notebooks/04_gold/gold_dim_customer.py
+        # T5.4 — card SCD2 (needs dim_customer)
+        - notebook:
+            path: ../notebooks/04_gold/gold_dim_card.py
+        # T5.5 — fact transaction (needs all dims)
+        - notebook:
+            path: ../notebooks/04_gold/gold_fact_transaction.py
+        # T5.6 — fact statement (needs dim_customer, dim_card, dim_date)
+        - notebook:
+            path: ../notebooks/04_gold/gold_fact_statement.py
+        # T5.7 — fact default (needs dim_customer, dim_card, dim_date + recovery rollup)
+        - notebook:
+            path: ../notebooks/04_gold/gold_fact_default.py
+        # T5.8 — validation (runs last)
+        - notebook:
+            path: ../notebooks/04_gold/gold_validate.py
+      # Trigger managed by full-pipeline-job or external scheduler
+
+  jobs:
+    gold-build-job:
+      name: ${var.catalog}-gold-build-job
+      max_concurrent_runs: 1
+
+      tasks:
+        # T5.1 + T5.2 — no dependencies (parallel)
+        - task_key: gold_dim_date
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_dim_date.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 600
+
+        - task_key: gold_dim_geography
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_dim_geography.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 600
+
+        # T5.3 — needs dim_geography for geo_sk
+        - task_key: gold_dim_customer
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_dim_customer.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_dim_geography
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        # T5.4 — needs dim_customer for FK
+        - task_key: gold_dim_card
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_dim_card.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_dim_customer
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        # T5.5 — needs all dims
+        - task_key: gold_fact_transaction
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_fact_transaction.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_dim_date
+            - task_key: gold_dim_geography
+            - task_key: gold_dim_customer
+            - task_key: gold_dim_card
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 1800
+
+        # T5.6 — needs customer, card, date
+        - task_key: gold_fact_statement
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_fact_statement.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_dim_date
+            - task_key: gold_dim_customer
+            - task_key: gold_dim_card
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        # T5.7 — needs customer, card, date + recovery rollup
+        - task_key: gold_fact_default
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_fact_default.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_dim_date
+            - task_key: gold_dim_customer
+            - task_key: gold_dim_card
+          run_if: ALL_SUCCESS
+          retry_on_timeout: true
+          max_retries: 2
+          min_retry_interval_millis: 60000
+          timeout_seconds: 900
+
+        # T5.8 — validation after all facts
+        - task_key: gold_validate
+          notebook_task:
+            notebook_path: ../notebooks/04_gold/gold_validate.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: gold_fact_transaction
+            - task_key: gold_fact_statement
+            - task_key: gold_fact_default
+          run_if: ALL_SUCCESS
+          timeout_seconds: 900

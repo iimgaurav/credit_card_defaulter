@@ -1,0 +1,58 @@
+# Monitoring Job
+# Daily DQ monitoring + reconciliation — runs independently of the main pipeline
+# Schedule: 6am UTC daily (after full pipeline completes at ~5am)
+
+resources:
+  jobs:
+    monitoring-job:
+      name: ${var.catalog}-monitoring-job
+      max_concurrent_runs: 1
+
+      schedule:
+        quartz_cron_expression: ${var.monitoring_schedule}
+        timezone_id: UTC
+        pause_status: UNPAUSED
+
+      tasks:
+        # DQ score trends + quarantine analysis
+        - task_key: dq_monitoring
+          notebook_task:
+            notebook_path: ../notebooks/06_monitoring/dq_monitoring.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 900
+
+        # SLA window compliance check
+        - task_key: sla_monitoring
+          notebook_task:
+            notebook_path: ../notebooks/06_monitoring/sla_monitoring.py
+            base_parameters:
+              catalog: ${var.catalog}
+          retry_on_timeout: true
+          max_retries: 1
+          timeout_seconds: 600
+
+        # Bronze → Silver → Gold row count reconciliation
+        - task_key: reconciliation
+          notebook_task:
+            notebook_path: ../notebooks/06_monitoring/reconciliation.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: dq_monitoring
+            - task_key: sla_monitoring
+          run_if: ALL_SUCCESS
+          timeout_seconds: 600
+
+        # Weekly maintenance: OPTIMIZE, ZORDER, VACUUM (runs every Sunday via cron)
+        - task_key: maintenance
+          notebook_task:
+            notebook_path: ../notebooks/06_monitoring/maintenance.py
+            base_parameters:
+              catalog: ${var.catalog}
+          depends_on:
+            - task_key: reconciliation
+          run_if: ALL_SUCCESS
+          timeout_seconds: 3600

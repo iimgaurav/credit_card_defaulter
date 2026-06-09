@@ -1,0 +1,51 @@
+# Bronze Ingestion Pipeline
+# Lakeflow Spark Declarative Pipeline (SDP)
+# Ingests all raw sources from UC Volume → Bronze Delta tables via Auto Loader + batch MERGE
+
+resources:
+  pipelines:
+    bronze-ingestion-pipeline:
+      name: ${var.catalog}-bronze-ingestion
+      catalog: ${var.catalog}
+      target: ${var.bronze_schema}
+      development: ${var.pipeline_development}
+      serverless: true
+      channel: CURRENT
+      continuous: false
+      configuration:
+        pipeline.target_catalog: ${var.catalog}
+        landing_volume: ${var.landing_volume}
+        warehouse_id: ${var.warehouse_id}
+      libraries:
+        # CRM — Auto Loader CSV
+        - notebook:
+            path: ../notebooks/01_ingestion/crm_customer.py
+        - notebook:
+            path: ../notebooks/01_ingestion/crm_address.py
+        # Card — Auto Loader Parquet
+        - notebook:
+            path: ../notebooks/01_ingestion/card_details.py
+        - notebook:
+            path: ../notebooks/01_ingestion/card_status.py
+        # Transactions — Auto Loader JSON
+        - notebook:
+            path: ../notebooks/01_ingestion/txn_transactions.py
+        # Billing — Auto Loader CSV
+        - notebook:
+            path: ../notebooks/01_ingestion/billing_statements.py
+        - notebook:
+            path: ../notebooks/01_ingestion/billing_payments.py
+        # Collections — batch Excel MERGE
+        - notebook:
+            path: ../notebooks/01_ingestion/collections_defaults.py
+        - notebook:
+            path: ../notebooks/01_ingestion/collections_recovery.py
+        # Reference + Calendar — MERGE / full refresh
+        - notebook:
+            path: ../notebooks/01_ingestion/ref_tables.py
+        - notebook:
+            path: ../notebooks/01_ingestion/dim_calendar.py
+        # Validation — runs last
+        - notebook:
+            path: ../notebooks/02_bronze/bronze_validate.py
+      # Trigger managed by full-pipeline-job or external scheduler

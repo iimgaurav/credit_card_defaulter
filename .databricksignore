@@ -1,0 +1,6 @@
+data_generator/
+__pycache__/
+.git/
+.venv/
+.mypy_cache/
+.pytest_cache/

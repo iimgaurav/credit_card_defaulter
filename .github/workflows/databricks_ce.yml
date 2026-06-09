@@ -1,0 +1,87 @@
+# Community-Edition CI/CD Pipeline
+# Uses personal access token (PAT) — the only auth method available in CE.
+# Store PAT in GitHub secret: CE_DATABRICKS_TOKEN
+# Store workspace URL in GitHub variable: CE_DATABRICKS_HOST
+
+name: CE Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DATABRICKS_CLI_VERSION: "0.218.0"
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  lint-and-test:
+    name: Lint & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install flake8 pytest pyspark>=3.5.0 pandas>=2.0.0
+
+      - name: Databricks notebook syntax check
+        run: |
+          errors=0
+          for f in $(find notebooks -name '*.py' -type f); do
+            python -c "
+import re, sys
+with open('$f') as fh:
+    content = fh.read()
+clean = re.sub(r'# MAGIC.*', '', content)
+clean = re.sub(r'# COMMAND .*', '', clean)
+clean = re.sub(r'# %run.*', '', clean)
+clean = re.sub(r'%sql.*', '', clean)
+sys.stdout.write(clean)
+" 2>/dev/null | python -m py_compile - "$f" 2>&1 || { echo "::error::Syntax error in $f"; errors=$((errors+1)); }
+          done
+          if [ $errors -gt 0 ]; then exit 1; fi
+          echo "All notebooks passed syntax check."
+
+      - name: Run flake8 lint
+        run: |
+          flake8 notebooks/ src/ tests/ --max-line-length=120 --ignore=E402,W503 --exclude=__pycache__ --show-source --statistics || true
+
+      - name: Run unit tests (local PySpark)
+        run: |
+          pytest tests/unit/ -v --tb=short
+
+  validate-and-deploy:
+    name: Validate & Deploy Bundle
+    needs: lint-and-test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        uses: databricks/install-databricks-cli@v1
+        with:
+          version: ${{ env.DATABRICKS_CLI_VERSION }}
+
+      - name: Validate bundle (CE target)
+        run: |
+          databricks bundle validate --target ce --strict
+        env:
+          DATABRICKS_HOST: ${{ vars.CE_DATABRICKS_HOST || 'https://community.cloud.databricks.com' }}
+          DATABRICKS_TOKEN: ${{ secrets.CE_DATABRICKS_TOKEN }}
+
+      - name: Deploy to CE workspace
+        if: github.ref == 'refs/heads/main'
+        run: |
+          databricks bundle deploy --target ce --auto-approve
+        env:
+          DATABRICKS_HOST: ${{ secrets.CE_DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.CE_DATABRICKS_TOKEN }}

@@ -1,0 +1,125 @@
+# DABs configuration for Credit Card Defaulter Analysis
+# 3 environments: dev (sandbox), uat (test), prod (production)
+# See: https://docs.databricks.com/en/dev-tools/bundles/index.html
+
+bundle:
+  name: credit_card_defaulter
+  databricks_cli_version: ">= 0.200.0"
+
+include:
+  - resources/*.yml
+
+# ── Variables ────────────────────────────────────────────────────────────────
+
+variables:
+  catalog:
+    description: Target Unity Catalog
+    default: credit_card_dev
+
+  bronze_schema:
+    description: Bronze schema name
+    default: bronze
+
+  silver_schema:
+    description: Silver schema name
+    default: silver
+
+  gold_schema:
+    description: Gold schema name
+    default: gold
+
+  landing_volume:
+    description: UC Volume path for source files
+    default: /Volumes/credit_card_dev/raw/landing
+
+  warehouse_id:
+    description: SQL Warehouse ID
+    default: faced73bbff7e9f2
+
+  notification_email:
+    description: On-call email for pipeline failure alerts
+    default: on-call@bank.com
+
+  success_email:
+    description: Team email for pipeline success notifications
+    default: data-team@bank.com
+
+  slack_webhook:
+    description: Slack incoming webhook URL for pipeline alerts
+    default: ""
+
+  pipeline_schedule:
+    description: Quartz cron for full pipeline
+    default: "0 0 2 * * ?"
+
+  monitoring_schedule:
+    description: Quartz cron for DQ monitoring
+    default: "0 0 6 * * ?"
+
+  node_type:
+    description: Worker node type
+    default: i3.xlarge
+
+  pipeline_development:
+    description: Run pipelines in development mode (true) or production mode (false)
+    default: true
+
+# ── Targets ──────────────────────────────────────────────────────────────────
+# Environment strategy:
+#   dev   → developer sandbox, no schedule, resource names include user
+#   uat   → shared test env, unpaused schedule, mirror of prod data
+#   prod  → production data, locked down, full alerting
+
+targets:
+
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-f49d67a0-6a22.cloud.databricks.com
+    variables:
+      catalog: credit_card_dev
+      landing_volume: /Volumes/credit_card_dev/raw/landing
+      pipeline_development: true
+      pipeline_schedule: "0 0 2 * * ?"
+      monitoring_schedule: "0 0 6 * * ?"
+
+  uat:
+    mode: development
+    workspace:
+      host: https://dbc-f49d67a0-6a22.cloud.databricks.com
+    variables:
+      catalog: credit_card_uat
+      landing_volume: /Volumes/credit_card_uat/raw/landing
+      notification_email: uat-on-call@bank.com
+      success_email: data-team@bank.com
+      pipeline_development: true
+      pipeline_schedule: "0 0 2 * * ?"
+      monitoring_schedule: "0 0 6 * * ?"
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-f49d67a0-6a22.cloud.databricks.com
+      root_path: /Workspace/Users/k.gaurav653@gmail.com/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: credit_card_prod
+      landing_volume: /Volumes/credit_card_prod/raw/landing
+      notification_email: on-call@bank.com
+      success_email: data-team@bank.com
+      slack_webhook: https://hooks.slack.com/services/T00/BA/XXXXX
+      pipeline_development: false
+      pipeline_schedule: "0 0 2 * * ?"
+      monitoring_schedule: "0 0 6 * * ?"
+
+  ce:
+    mode: development
+    default: false
+    workspace:
+      host: https://community.cloud.databricks.com
+    variables:
+      catalog: default
+      landing_volume: dbfs:/FileStore/credit_card_defaulter/landing
+      pipeline_development: true
+      pipeline_schedule: "0 0 2 * * ?"
+      monitoring_schedule: "0 0 6 * * ?"

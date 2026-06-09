@@ -1,0 +1,567 @@
+# CE (Community Edition) Full Pipeline Job
+# Single-node cluster, DBR 12.x, no Unity Catalog, Hive metastore
+# Run: databricks jobs create --json-file resources/ce_full_pipeline.yml
+
+{
+  "name": "credit-card-defaulter-ce-full-pipeline",
+  "max_concurrent_runs": 1,
+  "timeout_seconds": 7200,
+  "job_clusters": [
+    {
+      "job_cluster_key": "ce-cluster",
+      "new_cluster": {
+        "spark_version": "12.2.x-scala2.12",
+        "node_type_id": "i3.xlarge",
+        "num_workers": 0,
+        "spark_conf": {
+          "spark.databricks.clusterUsageTags.clusterPurpose": "pipeline",
+          "spark.databricks.clusterUsageTags.project": "credit_card_defaulter",
+          "spark.sql.sources.partitionOverwriteMode": "dynamic",
+          "spark.sql.adaptive.enabled": "true",
+          "spark.databricks.delta.optimizeWrite.enabled": "true",
+          "spark.databricks.delta.autoCompact.enabled": "true"
+        }
+      }
+    }
+  ],
+  "environment_variables": {
+    "CATALOG": "default",
+    "LANDING_PATH": "dbfs:/FileStore/credit_card_defaulter/landing",
+    "CHECKPOINT_PATH": "dbfs:/FileStore/credit_card_defaulter/checkpoints",
+    "WATERMARK_TABLE": "default.control_watermark",
+    "PIPELINE_LOGS_TABLE": "default.bronze_pipeline_logs",
+    "DQ_QUARANTINE_TABLE": "default.bronze_dq_quarantine",
+    "DQ_SCORES_TABLE": "default.silver_dq_scores",
+    "PROFILE": "community"
+  },
+  "tasks": [
+    {
+      "task_key": "init_dq_tables",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/00_utilities/init_dq_tables.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "timeout_seconds": 300
+    },
+    {
+      "task_key": "ingest_crm_customer",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/01_ingestion/crm_customer.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "init_dq_tables"}],
+      "timeout_seconds": 1800
+    },
+    {
+      "task_key": "ingest_crm_address",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/01_ingestion/crm_address.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "init_dq_tables"}],
+      "timeout_seconds": 1800
+    },
+    {
+      "task_key": "ingest_card_details",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/01_ingestion/card_details.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "init_dq_tables"}],
+      "timeout_seconds": 1800
+    },
+    {
+      "task_key": "ingest_card_status",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/01_ingestion/card_status.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "init_dq_tables"}],
+      "timeout_seconds": 1800
+    },
+    {
+      "task_key": "ingest_transactions",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/01_ingestion/txn_transactions.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "init_dq_tables"}],
+      "timeout_seconds": 3600
+    },
+    {
+      "task_key": "ingest_billing_statements",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/01_ingestion/billing_statements.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "init_dq_tables"}],
+      "timeout_seconds": 1800
+    },
+    {
+      "task_key": "ingest_billing_payments",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/01_ingestion/billing_payments.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "init_dq_tables"}],
+      "timeout_seconds": 1800
+    },
+    {
+      "task_key": "ingest_collections_defaults",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/01_ingestion/collections_defaults.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "init_dq_tables"}],
+      "timeout_seconds": 1800
+    },
+    {
+      "task_key": "ingest_collections_recovery",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/01_ingestion/collections_recovery.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "init_dq_tables"}],
+      "timeout_seconds": 1800
+    },
+    {
+      "task_key": "ingest_ref_tables",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/01_ingestion/ref_tables.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "init_dq_tables"}],
+      "timeout_seconds": 600
+    },
+    {
+      "task_key": "ingest_dim_calendar",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/01_ingestion/dim_calendar.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "init_dq_tables"}],
+      "timeout_seconds": 600
+    },
+    {
+      "task_key": "bronze_validate",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/02_bronze/bronze_validate.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [
+        {"task_key": "ingest_crm_customer"},
+        {"task_key": "ingest_crm_address"},
+        {"task_key": "ingest_card_details"},
+        {"task_key": "ingest_card_status"},
+        {"task_key": "ingest_transactions"},
+        {"task_key": "ingest_billing_statements"},
+        {"task_key": "ingest_billing_payments"},
+        {"task_key": "ingest_collections_defaults"},
+        {"task_key": "ingest_collections_recovery"},
+        {"task_key": "ingest_ref_tables"},
+        {"task_key": "ingest_dim_calendar"}
+      ],
+      "timeout_seconds": 600
+    },
+    {
+      "task_key": "silver_crm_customer",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/03_silver/silver_crm_customer.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "bronze_validate"}],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "silver_card",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/03_silver/silver_card.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "silver_crm_customer"}],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "silver_transactions",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/03_silver/silver_transactions.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "silver_card"}],
+      "timeout_seconds": 1800
+    },
+    {
+      "task_key": "silver_billing",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/03_silver/silver_billing.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "silver_crm_customer"}],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "silver_collections",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/03_silver/silver_collections.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "silver_crm_customer"}],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "silver_enrichment",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/03_silver/silver_enrichment.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [
+        {"task_key": "silver_transactions"},
+        {"task_key": "silver_billing"},
+        {"task_key": "silver_collections"}
+      ],
+      "timeout_seconds": 1200
+    },
+    {
+      "task_key": "silver_dq",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/03_silver/silver_dq.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "silver_enrichment"}],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "gold_dim_date",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/04_gold/gold_dim_date.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "silver_dq"}],
+      "timeout_seconds": 600
+    },
+    {
+      "task_key": "gold_dim_geography",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/04_gold/gold_dim_geography.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "silver_dq"}],
+      "timeout_seconds": 600
+    },
+    {
+      "task_key": "gold_dim_customer",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/04_gold/gold_dim_customer.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "gold_dim_geography"}],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "gold_dim_card",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/04_gold/gold_dim_card.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "gold_dim_customer"}],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "gold_fact_transaction",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/04_gold/gold_fact_transaction.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [
+        {"task_key": "gold_dim_date"},
+        {"task_key": "gold_dim_geography"},
+        {"task_key": "gold_dim_customer"},
+        {"task_key": "gold_dim_card"}
+      ],
+      "timeout_seconds": 1800
+    },
+    {
+      "task_key": "gold_fact_statement",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/04_gold/gold_fact_statement.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [
+        {"task_key": "gold_dim_date"},
+        {"task_key": "gold_dim_customer"},
+        {"task_key": "gold_dim_card"}
+      ],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "gold_fact_default",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/04_gold/gold_fact_default.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [
+        {"task_key": "gold_dim_date"},
+        {"task_key": "gold_dim_customer"},
+        {"task_key": "gold_dim_card"}
+      ],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "gold_validate",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/04_gold/gold_validate.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [
+        {"task_key": "gold_fact_transaction"},
+        {"task_key": "gold_fact_statement"},
+        {"task_key": "gold_fact_default"}
+      ],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "analytics_credit_utilization",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/05_analytics/credit_utilization.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "gold_validate"}],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "analytics_payment_behavior",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/05_analytics/payment_behavior.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "gold_validate"}],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "analytics_monthly_trends",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/05_analytics/monthly_trends.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "gold_validate"}],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "analytics_risk_scoring",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/05_analytics/default_risk_scoring.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [
+        {"task_key": "analytics_credit_utilization"},
+        {"task_key": "analytics_payment_behavior"}
+      ],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "analytics_customer_segmentation",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/05_analytics/customer_segmentation.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "analytics_risk_scoring"}],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "dq_monitoring",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/06_monitoring/dq_monitoring.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [
+        {"task_key": "analytics_customer_segmentation"},
+        {"task_key": "analytics_monthly_trends"}
+      ],
+      "timeout_seconds": 900
+    },
+    {
+      "task_key": "reconciliation",
+      "job_cluster_key": "ce-cluster",
+      "notebook_task": {
+        "notebook_path": "../notebooks/06_monitoring/reconciliation.py",
+        "base_parameters": {
+          "pipeline.target_catalog": "default",
+          "pipeline.landing_path": "dbfs:/FileStore/credit_card_defaulter/landing",
+          "pipeline.profile": "community"
+        }
+      },
+      "depends_on": [{"task_key": "dq_monitoring"}],
+      "timeout_seconds": 600
+    }
+  ]
+}
