@@ -2,13 +2,17 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop, release/*]
+    branches:
+      - main
+      - develop
+      - release/*
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       target:
-        description: 'Deployment target'
+        description: Deployment target
         required: true
         default: dev
         type: choice
@@ -23,7 +27,7 @@ env:
 
 jobs:
   lint:
-    name: Lint & Validate
+    name: Lint and Validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,15 +45,12 @@ jobs:
         run: |
           errors=0
           for f in $(find notebooks -name '*.py' -type f); do
-            # Strip Databricks notebook magic markers and COMMAND separators
             python -c "
 import re, sys
 with open('$f') as fh:
     content = fh.read()
-# Remove Databricks magic: # MAGIC ... and # COMMAND ----------
 clean = re.sub(r'# MAGIC.*', '', content)
 clean = re.sub(r'# COMMAND .*', '', clean)
-# Remove %run and %sql cells
 clean = re.sub(r'# %run.*', '', clean)
 clean = re.sub(r'%sql.*', '', clean)
 sys.stdout.write(clean)
@@ -124,10 +125,13 @@ sys.stdout.write(clean)
 
   deploy-dev:
     name: Deploy to Dev
-    needs: [lint, validate-bundle, security]
+    needs:
+      - lint
+      - validate-bundle
+      - security
     if: |
-      github.ref == 'refs/heads/develop' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
+      github.ref == 'refs/heads/develop'
+      && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
     runs-on: ubuntu-latest
     environment: dev
     steps:
@@ -154,10 +158,13 @@ sys.stdout.write(clean)
 
   deploy-uat:
     name: Deploy to UAT
-    needs: [lint, validate-bundle, security]
+    needs:
+      - lint
+      - validate-bundle
+      - security
     if: |
-      (startsWith(github.ref, 'refs/heads/release/') && github.event_name == 'push') ||
-      (github.event_name == 'workflow_dispatch' && inputs.target == 'uat')
+      (startsWith(github.ref, 'refs/heads/release/') && github.event_name == 'push')
+      || (github.event_name == 'workflow_dispatch' && inputs.target == 'uat')
     runs-on: ubuntu-latest
     environment: uat
     steps:
@@ -184,10 +191,13 @@ sys.stdout.write(clean)
 
   deploy-prod:
     name: Deploy to Production
-    needs: [lint, validate-bundle, security]
+    needs:
+      - lint
+      - validate-bundle
+      - security
     if: |
-      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
-      (github.event_name == 'workflow_dispatch' && inputs.target == 'prod')
+      (github.ref == 'refs/heads/main' && github.event_name == 'push')
+      || (github.event_name == 'workflow_dispatch' && inputs.target == 'prod')
     runs-on: ubuntu-latest
     environment: production
     steps:
