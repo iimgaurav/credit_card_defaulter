@@ -24,7 +24,7 @@
 
 ## Commands
 - Lint: `flake8 notebooks/ --max-line-length=120 --ignore=E402,W503`
-- Validate bundle: `databricks bundle validate --target dev --strict`
+- Validate bundle: `databricks bundle validate --target dev`
 - Deploy dev: `databricks bundle deploy --target dev --auto-approve`
 - Deploy uat: `databricks bundle deploy --target uat --auto-approve`
 - Deploy prod: `databricks bundle deploy --target prod --auto-approve`

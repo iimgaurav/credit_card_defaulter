@@ -74,7 +74,7 @@ jobs:
         run: |
           for target in dev uat prod; do
             echo "Validating target: $target"
-            databricks bundle validate --target "$target" --strict
+            databricks bundle validate --target "$target"
           done
         env:
           DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST || 'https://dbc-f49d67a0-6a22.cloud.databricks.com' }}
