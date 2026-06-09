@@ -87,6 +87,7 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST || 'https://dbc-f49d67a0-6a22.cloud.databricks.com' }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_TF_EXEC_PATH: /usr/local/bin/terraform
 
   security:
     name: Security Scan
