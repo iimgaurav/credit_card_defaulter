@@ -11,21 +11,22 @@ All environment-specific settings are managed here.
 
 # ██  CATALOG AND SCHEMA CONFIGURATION  ██████████████████████████████████████
 # Environment detection:
-#   1. pipeline.target_catalog from DAB pipeline config (preferred)
+#   1. Task widget (from DAB job base_parameters) for job runs
 #   2. TARGET_CATALOG from Spark conf (set via job_clusters spark_conf)
 #   3. Hardcoded default for local notebook development
+# NOTE: pipeline.target_catalog is NOT readable in serverless Spark Connect
+#       (throws AnalysisException), so we avoid spark.conf.get("pipeline.*")
+
+try:
+    _TARGET_CATALOG = dbutils.widgets.get("catalog")
+except Exception:
+    _TARGET_CATALOG = None
 
 _TARGET_CATALOG = (
-    spark.conf.get("pipeline.target_catalog", None)
+    _TARGET_CATALOG
     or spark.conf.get("TARGET_CATALOG", None)
     or "credit_card_dev"
 )
-
-# For serverless jobs, catalog comes from task widget (not Spark conf)
-try:
-    _TARGET_CATALOG = dbutils.widgets.get("catalog") or _TARGET_CATALOG
-except Exception:
-    pass
 
 CATALOG = _TARGET_CATALOG
 BRONZE_SCHEMA = "bronze"
