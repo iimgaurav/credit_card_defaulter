@@ -73,11 +73,6 @@ jobs:
       - name: Install Databricks CLI
         uses: databricks/setup-cli@main
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9.0
-
       - name: Validate bundle config (all targets)
         run: |
           for target in dev uat prod; do
@@ -87,7 +82,6 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST || 'https://dbc-f49d67a0-6a22.cloud.databricks.com' }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_TF_EXEC_PATH: /usr/local/bin/terraform
 
   security:
     name: Security Scan
@@ -137,18 +131,12 @@ jobs:
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9.0
-
       - name: Deploy bundle to dev
         run: |
           databricks bundle deploy --target dev --auto-approve
         env:
           DATABRICKS_HOST: ${{ secrets.DEV_DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DEV_DATABRICKS_TOKEN }}
-          DATABRICKS_TF_EXEC_PATH: /usr/local/bin/terraform
 
       - name: Run full pipeline in dev
         run: |
