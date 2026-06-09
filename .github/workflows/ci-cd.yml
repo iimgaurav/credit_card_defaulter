@@ -20,7 +20,7 @@ on:
           - prod
 
 env:
-  DATABRICKS_CLI_VERSION: "latest"
+  DATABRICKS_CLI_VERSION: "0.234.0"
   PYTHON_VERSION: "3.11"
 
 jobs:
@@ -137,12 +137,18 @@ jobs:
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+
       - name: Deploy bundle to dev
         run: |
           databricks bundle deploy --target dev --auto-approve
         env:
           DATABRICKS_HOST: ${{ secrets.DEV_DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DEV_DATABRICKS_TOKEN }}
+          DATABRICKS_TF_EXEC_PATH: /usr/local/bin/terraform
 
       - name: Run full pipeline in dev
         run: |
