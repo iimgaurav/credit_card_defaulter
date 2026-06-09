@@ -185,8 +185,7 @@ sys.stdout.write(clean)
     name: Deploy to Production
     needs: [lint, validate-bundle, security]
     if: |
-      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
-      (github.event_name == 'workflow_dispatch' && inputs.target == 'prod')
+      github.event_name == 'workflow_dispatch' && inputs.target == 'prod'
     runs-on: ubuntu-latest
     environment: production
     steps:
