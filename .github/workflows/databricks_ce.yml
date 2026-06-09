@@ -1,15 +1,13 @@
-# Community-Edition CI/CD Pipeline
-# Uses personal access token (PAT) — the only auth method available in CE.
-# Store PAT in GitHub secret: CE_DATABRICKS_TOKEN
-# Store workspace URL in GitHub variable: CE_DATABRICKS_HOST
-
 name: CE Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 env:
@@ -18,7 +16,7 @@ env:
 
 jobs:
   lint-and-test:
-    name: Lint & Unit Tests
+    name: Lint and Unit Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,7 +57,7 @@ sys.stdout.write(clean)
           pytest tests/unit/ -v --tb=short
 
   validate-and-deploy:
-    name: Validate & Deploy Bundle
+    name: Validate and Deploy Bundle
     needs: lint-and-test
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
