@@ -20,7 +20,7 @@ on:
           - prod
 
 env:
-  DATABRICKS_CLI_VERSION: "0.234.0"
+  DATABRICKS_CLI_VERSION: "latest"
   PYTHON_VERSION: "3.11"
 
 jobs:
@@ -72,8 +72,11 @@ jobs:
 
       - name: Install Databricks CLI
         uses: databricks/setup-cli@main
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          version: ${{ env.DATABRICKS_CLI_VERSION }}
+          terraform_version: 1.9.0
 
       - name: Validate bundle config (all targets)
         run: |

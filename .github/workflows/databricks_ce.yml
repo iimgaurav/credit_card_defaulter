@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  DATABRICKS_CLI_VERSION: "0.234.0"
+  DATABRICKS_CLI_VERSION: "0.215.0"
   PYTHON_VERSION: "3.11"
 
 jobs:
@@ -59,6 +59,7 @@ jobs:
         uses: databricks/setup-cli@main
         with:
           version: ${{ env.DATABRICKS_CLI_VERSION }}
+
 
       - name: Validate bundle (CE target)
         run: |
