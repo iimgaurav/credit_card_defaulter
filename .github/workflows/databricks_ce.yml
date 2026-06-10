@@ -66,7 +66,7 @@ jobs:
         run: |
           databricks bundle validate --target ce
         env:
-          DATABRICKS_HOST: ${{ vars.CE_DATABRICKS_HOST || 'https://community.cloud.databricks.com' }}
+          DATABRICKS_HOST: ${{ secrets.CE_DATABRICKS_HOST || 'https://community.cloud.databricks.com' }}
           DATABRICKS_TOKEN: ${{ secrets.CE_DATABRICKS_TOKEN }}
 
       - name: Deploy to CE workspace
