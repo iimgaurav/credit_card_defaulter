@@ -1,8 +1,6 @@
 """Unit tests for schema_registry.py — pure Python, no SparkSession needed."""
 
 import pytest
-import sys
-sys.path.insert(0, "src")
 from src.utils.schema_registry import (
     BRONZE_SCHEMAS, get_bronze_schema, METADATA_COLUMNS,
     CRM_CUSTOMER_SCHEMA, CRM_ADDRESS_SCHEMA, CARD_DETAILS_SCHEMA,
