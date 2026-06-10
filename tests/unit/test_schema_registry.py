@@ -79,7 +79,7 @@ def test_boolean_types():
 
 def test_date_types():
     fields = {f.name: f for f in CALENDAR_SCHEMA.fields}
-    assert isinstance(fields["date"].dataType, DateType())
+    assert isinstance(fields["date"].dataType, DateType)
     assert fields["date"].nullable is False
 
 

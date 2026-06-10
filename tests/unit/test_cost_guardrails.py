@@ -28,15 +28,20 @@ class TestSetClusterTags:
 class TestCheckRuntimeLimit:
     def test_within_limit_prints_message(self):
         from src.utils.cost_guardrails import check_runtime_limit
+        from datetime import datetime, timedelta
         spark = MagicMock()
-        spark.conf.get.return_value = str(int(pytest.approx(60000)))
+        # Use a recent timestamp (1 hour ago)
+        recent_ms = int((datetime.utcnow() - timedelta(hours=1)).timestamp() * 1000)
+        spark.conf.get.return_value = str(recent_ms)
         check_runtime_limit(spark, max_hours=2)
 
     def test_exceeds_limit_raises(self):
         from src.utils.cost_guardrails import check_runtime_limit
+        from datetime import datetime, timedelta
         spark = MagicMock()
-        epoch_24h_ago = int(pytest.approx(25 * 3600 * 1000))
-        spark.conf.get.return_value = str(epoch_24h_ago)
+        # Use a timestamp from 25 hours ago
+        old_ms = int((datetime.utcnow() - timedelta(hours=25)).timestamp() * 1000)
+        spark.conf.get.return_value = str(old_ms)
         with pytest.raises(RuntimeError, match="Runtime guardrail TRIPPED"):
             check_runtime_limit(spark, max_hours=2)
 

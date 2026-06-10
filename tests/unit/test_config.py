@@ -34,10 +34,15 @@ class TestDetectCatalog:
 
     def test_widget_overrides(self, mock_spark):
         mock_spark.conf.get.return_value = "credit_card_dev"
-        with patch("src.utils.config.DBUtils") as MockDBUtils:
-            mock_dbutils = MagicMock()
-            mock_dbutils.widgets.get.return_value = "credit_card_uat"
-            MockDBUtils.return_value = mock_dbutils
+        mock_dbutils = MagicMock()
+        mock_dbutils.widgets.get.return_value = "credit_card_uat"
+        # Create a fake pyspark.dbutils module
+        fake_module = type(sys)("pyspark.dbutils")
+        fake_module.DBUtils = lambda s: mock_dbutils
+        with patch.dict("sys.modules", {"pyspark.dbutils": fake_module}):
+            # Force reimport
+            if "src.utils.config" in sys.modules:
+                del sys.modules["src.utils.config"]
             from src.utils.config import detect_catalog
             assert detect_catalog(mock_spark) == "credit_card_uat"
 
@@ -98,9 +103,11 @@ class TestUpsertTable:
         from src.utils.config import upsert_table
         mock_df = MagicMock()
         mock_writer = MagicMock()
-        mock_df.write = mock_writer
+        mock_df.write.format.return_value = mock_writer
+        mock_writer.mode.return_value = mock_writer
+        mock_writer.partitionBy.return_value = mock_writer
         upsert_table(mock_spark, mock_df, "catalog.silver.t", ["pk1"])
-        mock_writer.format.assert_called_once_with("delta")
+        mock_df.write.format.assert_called_once_with("delta")
         mock_writer.mode.assert_called_once_with("overwrite")
 
     def test_create_with_partition(self, mock_spark):
@@ -108,6 +115,9 @@ class TestUpsertTable:
         from src.utils.config import upsert_table
         mock_df = MagicMock()
         mock_writer = MagicMock()
-        mock_df.write = mock_writer
+        mock_df.write.format.return_value = mock_writer
+        mock_writer.mode.return_value = mock_writer
+        mock_writer.option.return_value = mock_writer
+        mock_writer.partitionBy.return_value = mock_writer
         upsert_table(mock_spark, mock_df, "catalog.silver.t", ["pk1"], partition_cols=["dt"])
         mock_writer.partitionBy.assert_called_once_with("dt")
