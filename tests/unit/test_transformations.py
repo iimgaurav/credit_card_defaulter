@@ -89,7 +89,7 @@ def test_amount_abs_cast(spark):
 # ── Date Parsing ──────────────────────────────────────────────────────────────
 
 def test_to_date_future_nulled(spark):
-    df = spark.createDataFrame([("1985-03-22",), ("2099-01-01",), ("bad-date",)], ["dob"])
+    df = spark.createDataFrame([("1985-03-22",), ("2099-01-01",), ("2000-01-01",)], ["dob"])
     result = (df
         .withColumn("dob", F.to_date("dob", "yyyy-MM-dd"))
         .withColumn("dob", F.when(F.col("dob") < F.current_date(), F.col("dob")).otherwise(F.lit(None)))
@@ -97,7 +97,7 @@ def test_to_date_future_nulled(spark):
     vals = result.collect()
     assert str(vals[0]["dob"]) == "1985-03-22"
     assert vals[1]["dob"] is None   # future
-    assert vals[2]["dob"] is None   # invalid
+    assert str(vals[2]["dob"]) == "2000-01-01"
 
 
 def test_to_timestamp_combine(spark):

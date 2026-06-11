@@ -13,6 +13,7 @@ on:
 env:
   DATABRICKS_CLI_VERSION: "0.296.1"
   PYTHON_VERSION: "3.11"
+  PYTHONPATH: ${{ github.workspace }}
 
 jobs:
   lint-and-test:
@@ -65,7 +66,7 @@ jobs:
         run: |
           databricks bundle validate --target ce
         env:
-          DATABRICKS_HOST: ${{ vars.CE_DATABRICKS_HOST || 'https://community.cloud.databricks.com' }}
+          DATABRICKS_HOST: ${{ secrets.CE_DATABRICKS_HOST || 'https://community.cloud.databricks.com' }}
           DATABRICKS_TOKEN: ${{ secrets.CE_DATABRICKS_TOKEN }}
 
       - name: Deploy to CE workspace

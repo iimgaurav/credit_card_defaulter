@@ -32,7 +32,10 @@ def check_runtime_limit(spark, max_hours=2):
     Usage:
         check_runtime_limit(spark, max_hours=2)
     """
-    start_epoch = spark.conf.get("spark.sql.session.startTime", None)
+    try:
+        start_epoch = spark.conf.get("spark.sql.session.startTime")
+    except Exception:
+        start_epoch = None
     if start_epoch is None:
         print("Runtime check skipped: cannot determine start time.")
         return

@@ -22,11 +22,11 @@ try:
 except Exception:
     _TARGET_CATALOG = None
 
-_TARGET_CATALOG = (
-    _TARGET_CATALOG
-    or spark.conf.get("TARGET_CATALOG", None)
-    or "credit_card_dev"
-)
+if _TARGET_CATALOG is None:
+    try:
+        _TARGET_CATALOG = spark.conf.get("TARGET_CATALOG")
+    except Exception:
+        _TARGET_CATALOG = "credit_card_dev"
 
 CATALOG = _TARGET_CATALOG
 BRONZE_SCHEMA = "bronze"
@@ -42,9 +42,20 @@ LANDING_VOLUME = f"/Volumes/{CATALOG}/{RAW_SCHEMA}/landing"
 
 # ██  CONNECTION CONFIGURATION  █████████████████████████████████████████████
 
-HOST = spark.conf.get("pipeline.host", None) or "dbc-f49d67a0-6a22.cloud.databricks.com"
-HTTP_PATH = spark.conf.get("pipeline.http_path", None) or "/sql/1.0/warehouses/faced73bbff7e9f2"
-WAREHOUSE_ID = spark.conf.get("pipeline.warehouse_id", None) or "faced73bbff7e9f2"
+try:
+    HOST = spark.conf.get("pipeline.host") or "dbc-f49d67a0-6a22.cloud.databricks.com"
+except Exception:
+    HOST = "dbc-f49d67a0-6a22.cloud.databricks.com"
+
+try:
+    HTTP_PATH = spark.conf.get("pipeline.http_path") or "/sql/1.0/warehouses/faced73bbff7e9f2"
+except Exception:
+    HTTP_PATH = "/sql/1.0/warehouses/faced73bbff7e9f2"
+
+try:
+    WAREHOUSE_ID = spark.conf.get("pipeline.warehouse_id") or "faced73bbff7e9f2"
+except Exception:
+    WAREHOUSE_ID = "faced73bbff7e9f2"
 
 # ██  TABLE NAME CONSTANTS  ████████████████████████████████████████████████
 

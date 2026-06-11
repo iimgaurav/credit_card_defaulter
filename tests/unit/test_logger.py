@@ -76,10 +76,10 @@ class TestPipelineLogger:
         except RuntimeError as e:
             log.fail_task("task3", s3, e)
         summary = log.summary()
-        assert summary["total_tasks"] == 5  # 3 start + 2 complete + 1 fail
+        assert summary["total_tasks"] == 6  # 3 start + 2 complete + 1 fail
         assert summary["completed"] == 2
         assert summary["failed"] == 1
-        assert summary["started"] == 2  # remaining 2 are started (task1 start re-used? no...)
+        assert summary["started"] == 3  # 3 started, 2 completed, 1 failed
 
     def test_get_logs_df(self, mock_spark):
         from src.utils.logger import PipelineLogger
