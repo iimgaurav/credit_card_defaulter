@@ -5,11 +5,15 @@ from pyspark.sql import SparkSession
 
 def detect_catalog(spark):
     """Detect target catalog from Spark conf or widget, with fallback."""
-    catalog = (
-        spark.conf.get("pipeline.target_catalog", None)
-        or spark.conf.get("TARGET_CATALOG", None)
-        or "credit_card_dev"
-    )
+    catalog = "credit_card_dev"
+    try:
+        catalog = spark.conf.get("pipeline.target_catalog") or catalog
+    except Exception:
+        pass
+    try:
+        catalog = spark.conf.get("TARGET_CATALOG") or catalog
+    except Exception:
+        pass
     try:
         from pyspark.dbutils import DBUtils
         dbutils = DBUtils(spark)
